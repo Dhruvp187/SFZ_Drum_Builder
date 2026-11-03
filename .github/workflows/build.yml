@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch: # Allows you to manually trigger builds from the Actions tab!
+  workflow_dispatch:
 
 permissions:
   contents: write
