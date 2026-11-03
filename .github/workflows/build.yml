@@ -51,11 +51,10 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          # Automatically detects whether your script is in root or a subfolder
           if [ -f "SFZ_Tool.py" ]; then
-            pyinstaller --noconfirm --onefile --windowed SFZ_Tool.py
+            pyinstaller --noconfirm --onefile --windowed --hidden-import=tkinter --hidden-import=csv --hidden-import=pathlib SFZ_Tool.py
           elif [ -f "SFZ_Tool/SFZ_Tool.py" ]; then
-            pyinstaller --noconfirm --onefile --windowed SFZ_Tool/SFZ_Tool.py
+            pyinstaller --noconfirm --onefile --windowed --hidden-import=tkinter --hidden-import=csv --hidden-import=pathlib SFZ_Tool/SFZ_Tool.py
           else
             echo "Error: Python script not found!"
             exit 1
