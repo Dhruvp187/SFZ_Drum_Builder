@@ -1,0 +1,85 @@
+name: Build SFZ Tool Executables
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers automatically when you push a tag like v1.0.0
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+            executable_name: SFZ_Tool.exe
+          - os: macos-latest
+            target: macos
+            executable_name: SFZ_Tool
+          - os: ubuntu-latest
+            target: linux
+            executable_name: SFZ_Tool
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          # If your script has external dependencies (e.g., PyQt5, pygame, etc.), add them here:
+          # pip install -r requirements.txt
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller --noconfirm --onefile --windowed SFZ_Tool/SFZ_Tool.py
+
+      - name: Rename Executable (Linux/Mac/Windows safe naming)
+        shell: bash
+        run: |
+          if [ "${{ matrix.target }}" == "windows" ]; then
+            mv dist/*.exe dist/SFZ_Tool-windows.exe
+          elif [ "${{ matrix.target }}" == "macos" ]; then
+            mv dist/SFZ_Tool dist/SFZ_Tool-macos
+          else
+            mv dist/SFZ_Tool dist/SFZ_Tool-linux
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.target }}
+          path: dist/SFZ_Tool-*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+          
+            artifacts/build-windows/SFZ_Tool-windows.exe
+            artifacts/build-macos/SFZ_Tool-macos
+            artifacts/build-linux/SFZ_Tool-linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
