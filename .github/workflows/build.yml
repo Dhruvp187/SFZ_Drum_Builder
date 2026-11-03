@@ -3,7 +3,7 @@ name: Build SFZ Tool Executables
 on:
   push:
     tags:
-      - 'v*' # Triggers automatically when you push a tag like v1.0.0
+      - 'v*' 
 
 permissions:
   contents: write
