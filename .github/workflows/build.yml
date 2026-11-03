@@ -1,107 +1,116 @@
 name: Build SFZ Tool Executables
 
-on: push: tags: - 'v*' workflow_dispatch:
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
 
-permissions: contents: write
+permissions:
+  contents: write
 
-jobs: build: name: Build for ${{ matrix.os }} runs-on: ${{ matrix.os }}
+jobs:
+  build:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-strategy:
-  fail-fast: false
-  matrix:
-    include:
-      - os: windows-latest
-        target: windows
-      - os: macos-latest
-        target: macos
-      - os: ubuntu-22.04
-        target: linux
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: windows
+          - os: macos-latest
+            target: macos
+          - os: ubuntu-22.04
+            target: linux
 
-steps:
-  - name: Checkout Repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.10'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
 
-  - name: Install System Dependencies (Linux GUI)
-    if: runner.os == 'Linux'
-    run: |
-      sudo apt-get update
-      sudo apt-get install -y python3-tk libgl1
+      - name: Install System Dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk libgl1
 
-  - name: Install Dependencies
-    shell: bash
-    run: |
-      python -m pip install --upgrade pip
-      python -m pip install pyinstaller
+      - name: Install Dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
 
-      if [ -f requirements.txt ]; then
-        python -m pip install -r requirements.txt
-      fi
+          if [ -f requirements.txt ]; then
+            python -m pip install -r requirements.txt
+          fi
 
-  - name: Build with PyInstaller
-    shell: bash
-    run: |
-      if [ -f "SFZ_Tool.py" ]; then
-        MAIN_SCRIPT="SFZ_Tool.py"
-      elif [ -f "SFZ_Tool/SFZ_Tool.py" ]; then
-        MAIN_SCRIPT="SFZ_Tool/SFZ_Tool.py"
-      else
-        echo "Searching for Python scripts:"
-        find . -name "*.py"
-        echo "Error: Main script not found!"
-        exit 1
-      fi
+      - name: Build with PyInstaller
+        shell: bash
+        run: |
+          if [ -f "SFZ_Tool.py" ]; then
+            MAIN_SCRIPT="SFZ_Tool.py"
+          elif [ -f "SFZ_Tool/SFZ_Tool.py" ]; then
+            MAIN_SCRIPT="SFZ_Tool/SFZ_Tool.py"
+          else
+            echo "Searching for Python scripts:"
+            find . -name "*.py"
+            echo "Error: Main script not found!"
+            exit 1
+          fi
 
-      python -m PyInstaller \
-        --noconfirm \
-        --clean \
-        --onefile \
-        --windowed \
-        --name SFZ_Tool \
-        --hidden-import=tkinter \
-        --hidden-import=csv \
-        --hidden-import=pathlib \
-        "$MAIN_SCRIPT"
+          python -m PyInstaller \
+            --noconfirm \
+            --clean \
+            --onefile \
+            --windowed \
+            --name SFZ_Tool \
+            --hidden-import=tkinter \
+            --hidden-import=csv \
+            --hidden-import=pathlib \
+            "$MAIN_SCRIPT"
 
-  - name: Rename Executable
-    shell: bash
-    run: |
-      mkdir -p dist_final
+      - name: Rename Executable
+        shell: bash
+        run: |
+          mkdir -p dist_final
 
-      if [ "${{ matrix.target }}" = "windows" ]; then
-        cp dist/SFZ_Tool.exe dist_final/SFZ_Tool-windows.exe
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            cp dist/SFZ_Tool.exe dist_final/SFZ_Tool-windows.exe
+          elif [ "${{ matrix.target }}" = "macos" ]; then
+            cp dist/SFZ_Tool dist_final/SFZ_Tool-macos
+          else
+            cp dist/SFZ_Tool dist_final/SFZ_Tool-linux
+          fi
 
-      elif [ "${{ matrix.target }}" = "macos" ]; then
-        cp dist/SFZ_Tool dist_final/SFZ_Tool-macos
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.target }}
+          path: dist_final/SFZ_Tool-*
 
-      else
-        cp dist/SFZ_Tool dist_final/SFZ_Tool-linux
-      fi
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
 
-  - name: Upload Artifacts
-    uses: actions/upload-artifact@v4
-    with:
-      name: build-${{ matrix.target }}
-      path: dist_final/SFZ_Tool-*
+    steps:
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-release: name: Create GitHub Release needs: build runs-on: ubuntu-latest
-
-steps:
-  - name: Download All Artifacts
-    uses: actions/download-artifact@v4
-    with:
-      path: artifacts
-
-  - name: Create GitHub Release and Upload Assets
-    uses: softprops/action-gh-release@v2
-    with:
-      files: |
-        artifacts/build-windows/SFZ_Tool-windows.exe
-        artifacts/build-macos/SFZ_Tool-macos
-        artifacts/build-linux/SFZ_Tool-linux
-    env:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/build-windows/SFZ_Tool-windows.exe
+            artifacts/build-macos/SFZ_Tool-macos
+            artifacts/build-linux/SFZ_Tool-linux
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
