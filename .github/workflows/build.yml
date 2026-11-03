@@ -23,7 +23,7 @@ jobs:
           - os: macos-latest
             target: macos
             executable_name: SFZ_Tool
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             target: linux
             executable_name: SFZ_Tool
 
@@ -37,6 +37,12 @@ jobs:
           python-version: '3.10'
           cache: 'pip'
 
+      - name: Install System Dependencies (Linux GUI)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk libgl1-mesa-glx
+
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
@@ -45,7 +51,15 @@ jobs:
 
       - name: Build with PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile --windowed SFZ_Tool/SFZ_Tool.py
+          # Automatically detects whether your script is in root or a subfolder
+          if [ -f "SFZ_Tool.py" ]; then
+            pyinstaller --noconfirm --onefile --windowed SFZ_Tool.py
+          elif [ -f "SFZ_Tool/SFZ_Tool.py" ]; then
+            pyinstaller --noconfirm --onefile --windowed SFZ_Tool/SFZ_Tool.py
+          else
+            echo "Error: Python script not found!"
+            exit 1
+          fi
 
       - name: Rename Executable (Linux/Mac/Windows safe naming)
         shell: bash
