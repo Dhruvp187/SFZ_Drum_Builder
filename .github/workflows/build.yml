@@ -19,13 +19,10 @@ jobs:
         include:
           - os: windows-latest
             target: windows
-            executable_name: SFZ_Tool.exe
           - os: macos-latest
             target: macos
-            executable_name: SFZ_Tool
           - os: ubuntu-22.04
             target: linux
-            executable_name: SFZ_Tool
 
     steps:
       - name: Checkout Repository
@@ -50,32 +47,36 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Build with PyInstaller
+        shell: bash
         run: |
           if [ -f "SFZ_Tool.py" ]; then
             pyinstaller --noconfirm --onefile --windowed --hidden-import=tkinter --hidden-import=csv --hidden-import=pathlib SFZ_Tool.py
           elif [ -f "SFZ_Tool/SFZ_Tool.py" ]; then
             pyinstaller --noconfirm --onefile --windowed --hidden-import=tkinter --hidden-import=csv --hidden-import=pathlib SFZ_Tool/SFZ_Tool.py
           else
-            echo "Error: Python script not found!"
+            echo "Searching for python scripts in workspace:"
+            find . -name "*.py"
+            echo "Error: Main script not found!"
             exit 1
           fi
 
-      - name: Rename Executable (Linux/Mac/Windows safe naming)
+      - name: Rename Executable (Safe Cross-Platform Naming)
         shell: bash
         run: |
+          mkdir -p dist_final
           if [ "${{ matrix.target }}" == "windows" ]; then
-            mv dist/*.exe dist/SFZ_Tool-windows.exe
+            mv dist/*.exe dist_final/SFZ_Tool-windows.exe
           elif [ "${{ matrix.target }}" == "macos" ]; then
-            mv dist/SFZ_Tool dist/SFZ_Tool-macos
+            mv dist/SFZ_Tool dist_final/SFZ_Tool-macos
           else
-            mv dist/SFZ_Tool dist/SFZ_Tool-linux
+            mv dist/SFZ_Tool dist_final/SFZ_Tool-linux
           fi
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.target }}
-          path: dist/SFZ_Tool-*
+          path: dist_final/SFZ_Tool-*
 
   release:
     needs: build
